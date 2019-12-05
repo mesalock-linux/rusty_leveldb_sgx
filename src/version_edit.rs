@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use error::{err, Result, StatusCode};
 use key_types::InternalKey;
 use types::{FileMetaData, FileNum, SequenceNumber};

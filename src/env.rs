@@ -1,12 +1,22 @@
 //! An `env` is an abstraction layer that allows the database to run both on different platforms as
 //! well as persisting data on disk or in memory.
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
 
 use error::Result;
 
-use std::fs::File;
+//use std::fs::File;
 use std::io::prelude::*;
 use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
+use std::untrusted::fs::File;
+
+cfg_if! {
+    if #[cfg(feature = "mesalock_sgx")] {
+        use protected_fs::ProtectedFile;
+        use error::Status;
+    }
+}
 
 pub trait RandomAccess {
     fn read_at(&self, off: usize, dst: &mut [u8]) -> Result<usize>;
@@ -15,6 +25,16 @@ pub trait RandomAccess {
 impl RandomAccess for File {
     fn read_at(&self, off: usize, dst: &mut [u8]) -> Result<usize> {
         Ok((self as &dyn FileExt).read_at(dst, off as u64)?)
+    }
+}
+
+cfg_if! {
+    if #[cfg(feature = "mesalock_sgx")] {
+        impl RandomAccess for ProtectedFile {
+            fn read_at(&self, off: usize, dst: &mut [u8]) -> Result<usize> {
+                self.read_at(off, dst).map_err(|e| Status::from(e))
+            }
+        }
     }
 }
 

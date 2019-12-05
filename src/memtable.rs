@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use cmp::{Cmp, MemtableKeyCmp};
 use key_types::{build_memtable_key, parse_internal_key, parse_memtable_key, ValueType};
 use key_types::{LookupKey, UserKey};

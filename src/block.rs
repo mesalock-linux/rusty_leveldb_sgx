@@ -1,5 +1,7 @@
-use std::cmp::Ordering;
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
 
+use std::cmp::Ordering;
 use std::rc::Rc;
 
 use options::Options;

@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use std::convert::From;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
@@ -5,7 +8,7 @@ use std::io;
 use std::result;
 use std::sync;
 
-use errno;
+use libc::c_int;
 use snap;
 
 /// StatusCode describes various failure modes of database operations.
@@ -25,7 +28,7 @@ pub enum StatusCode {
     NotSupported,
     PermissionDenied,
     Unknown,
-    Errno(errno::Errno),
+    Errno(c_int),
 }
 
 /// Status encapsulates a `StatusCode` and an error message. It can be displayed, and also

@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use cmp::{Cmp, InternalKeyCmp};
 use error::Result;
 use key_types::{parse_internal_key, InternalKey, LookupKey, UserKey, ValueType};

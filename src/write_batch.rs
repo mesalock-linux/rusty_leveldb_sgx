@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use integer_encoding::{FixedInt, VarInt, VarIntWriter};
 use key_types::ValueType;
 use memtable::MemTable;

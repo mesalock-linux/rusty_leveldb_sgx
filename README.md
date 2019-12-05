@@ -1,5 +1,5 @@
 # leveldb-rs
-
+[![Build Status](https://ci.mesalock-linux.org/api/badges/mesalock-linux/rusty_leveldb/status.svg?ref=refs/heads/sgx)](https://ci.mesalock-linux.org/mesalock-linux/rusty_leveldb)
 [![crates.io](https://img.shields.io/crates/v/rusty-leveldb.svg)](https://crates.io/crates/rusty-leveldb)
 
 A fully compatible implementation of LevelDB in Rust. (any incompatibility is a

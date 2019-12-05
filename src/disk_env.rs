@@ -1,16 +1,37 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use env::{path_to_str, Env, FileLock, Logger, RandomAccess};
 use env_common::{micros, sleep_for};
 use error::{err, Result, Status, StatusCode};
 
 use std::collections::HashMap;
-use std::fs;
+//use std::fs;
+#[cfg(feature = "mesalock_sgx")]
+use std::untrusted::fs;
+
+#[cfg(feature = "mesalock_sgx")]
+use std::untrusted::path::PathEx;
+
 use std::io::{self, Read, Write};
 use std::iter::FromIterator;
 use std::os::unix::io::IntoRawFd;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, SgxMutex as Mutex};
 
 use libc;
+
+cfg_if! {
+    if #[cfg(feature = "mesalock_sgx")] {
+        use protected_fs;
+        use std::io::{Seek, SeekFrom};
+    }
+}
+
+pub type DBPersistKey = [u8; 16];
+
+//FIXME:Hardcode Key
+//const KEY: [u8; 16] = [90u8; 16];
 
 const F_RDLCK: libc::c_short = 0;
 const F_WRLCK: libc::c_short = 1;
@@ -21,15 +42,27 @@ type FileDescriptor = i32;
 #[derive(Clone)]
 pub struct PosixDiskEnv {
     locks: Arc<Mutex<HashMap<String, FileDescriptor>>>,
+    #[cfg(feature = "mesalock_sgx")]
+    key: DBPersistKey,
 }
 
 impl PosixDiskEnv {
-    pub fn new() -> PosixDiskEnv {
-        PosixDiskEnv {
-            locks: Arc::new(Mutex::new(HashMap::new())),
+cfg_if! {
+    if #[cfg(feature = "mesalock_sgx")]  {
+        pub fn new_with(key: DBPersistKey) -> PosixDiskEnv {
+            PosixDiskEnv {
+                locks: Arc::new(Mutex::new(HashMap::new())),
+                key
+            }
+        }
+    } else {
+        pub fn new() -> PosixDiskEnv {
+            PosixDiskEnv {
+                locks: Arc::new(Mutex::new(HashMap::new())),
+            }
         }
     }
-}
+}}
 
 /// map_err_with_name annotates an io::Error with information about the operation and the file.
 fn map_err_with_name(method: &'static str, f: &Path, e: io::Error) -> Status {
@@ -42,44 +75,91 @@ fn map_err_with_name(method: &'static str, f: &Path, e: io::Error) -> Status {
 // error conversion using std::convert::From.
 impl Env for PosixDiskEnv {
     fn open_sequential_file(&self, p: &Path) -> Result<Box<dyn Read>> {
-        Ok(Box::new(
-            fs::OpenOptions::new()
-                .read(true)
-                .open(p)
-                .map_err(|e| map_err_with_name("open (seq)", p, e))?,
-        ))
+        cfg_if! {
+            if #[cfg(feature = "mesalock_sgx")] {
+                Ok(Box::new(
+                    protected_fs::OpenOptions::default()
+                        .read(true)
+                        .open_ex(p, &self.key)
+                        .map_err(|e| map_err_with_name("open_sgx (seq)", p, e))?,
+                ))
+            } else {
+                Ok(Box::new(
+                    fs::OpenOptions::new()
+                        .read(true)
+                        .open(p)
+                        .map_err(|e| map_err_with_name("open (seq)", p, e))?,
+                ))
+            }
+        }
     }
     fn open_random_access_file(&self, p: &Path) -> Result<Box<dyn RandomAccess>> {
-        Ok(fs::OpenOptions::new()
-            .read(true)
-            .open(p)
-            .map(|f| {
-                let b: Box<dyn RandomAccess> = Box::new(f);
-                b
-            })
-            .map_err(|e| map_err_with_name("open (randomaccess)", p, e))?)
+        cfg_if! {
+            if #[cfg(feature = "mesalock_sgx")]  {
+                Ok(protected_fs::OpenOptions::default()
+                    .read(true)
+                    .open_ex(p, &self.key)
+                    .map(|f| {
+                        let b: Box<dyn RandomAccess> = Box::new(f);
+                        b
+                    })
+                    .map_err(|e| map_err_with_name("open_sgx (randomaccess)", p, e))?)
+            } else {
+                Ok(fs::OpenOptions::new()
+                    .read(true)
+                    .open(p)
+                    .map(|f| {
+                        let b: Box<dyn RandomAccess> = Box::new(f);
+                        b
+                    })
+                    .map_err(|e| map_err_with_name("open (randomaccess)", p, e))?)
+            }
+        }
     }
     fn open_writable_file(&self, p: &Path) -> Result<Box<dyn Write>> {
-        Ok(Box::new(
-            fs::OpenOptions::new()
-                .create(true)
-                .write(true)
-                .append(false)
-                .open(p)
-                .map_err(|e| map_err_with_name("open (write)", p, e))?,
-        ))
+        cfg_if! {
+            if #[cfg(feature = "mesalock_sgx")]  {
+                Ok(Box::new(
+                    protected_fs::OpenOptions::default()
+                        .write(true)
+                        .append(false)
+                        .open_ex(p, &self.key)
+                        .map_err(|e| map_err_with_name("open_sgx (write)", p, e))?,
+                ))
+            }
+            else {
+                Ok(Box::new(
+                    fs::OpenOptions::new()
+                        .create(true)
+                        .write(true)
+                        .append(false)
+                        .open(p)
+                        .map_err(|e| map_err_with_name("open (write)", p, e))?,
+                ))
+            }
+        }
     }
     fn open_appendable_file(&self, p: &Path) -> Result<Box<dyn Write>> {
-        Ok(Box::new(
-            fs::OpenOptions::new()
-                .create(true)
-                .write(true)
-                .append(true)
-                .open(p)
-                .map_err(|e| map_err_with_name("open (append)", p, e))?,
-        ))
+        cfg_if! {
+            if #[cfg(feature = "mesalock_sgx")] {
+                Ok(Box::new(
+                    protected_fs::OpenOptions::default()
+                        .append(true)
+                        .open_ex(p, &self.key)
+                        .map_err(|e| map_err_with_name("open_sgx (append_sgx)", p, e))?,
+                ))
+            } else {
+                Ok(Box::new(
+                    fs::OpenOptions::new()
+                        .create(true)
+                        .write(true)
+                        .append(true)
+                        .open(p)
+                        .map_err(|e| map_err_with_name("open (append)", p, e))?,
+                ))
+            }
+        }
     }
-
     fn exists(&self, p: &Path) -> Result<bool> {
         Ok(p.exists())
     }
@@ -97,9 +177,23 @@ impl Env for PosixDiskEnv {
             .filter(|s| !s.as_os_str().is_empty());
         Ok(Vec::from_iter(filenames))
     }
+
     fn size_of(&self, p: &Path) -> Result<usize> {
-        let meta = fs::metadata(p).map_err(|e| map_err_with_name("size_of", p, e))?;
-        Ok(meta.len() as usize)
+        cfg_if! {
+            // FIXME: workaround
+            if #[cfg(feature = "mesalock_sgx")] {
+                let mut f = protected_fs::OpenOptions::default()
+                        .read(true)
+                        .open_ex(p, &self.key)
+                        .map_err(|e| map_err_with_name("size_of (open)", p, e))?;
+                let size = f.seek(SeekFrom::End(0))?;
+                Ok(size as usize)
+            }
+            else {
+                let meta = fs::metadata(p).map_err(|e| map_err_with_name("size_of", p, e))?;
+                Ok(meta.len() as usize)
+            }
+        }
     }
 
     fn delete(&self, p: &Path) -> Result<()> {
@@ -112,7 +206,26 @@ impl Env for PosixDiskEnv {
         Ok(fs::remove_dir_all(p).map_err(|e| map_err_with_name("rmdir", p, e))?)
     }
     fn rename(&self, old: &Path, new: &Path) -> Result<()> {
-        Ok(fs::rename(old, new).map_err(|e| map_err_with_name("rename", old, e))?)
+        cfg_if! {
+            if #[cfg(feature = "mesalock_sgx")]  {
+                let old_name = old.file_name()
+                                  .ok_or(map_err_with_name("rename1", old, io::Error::from_raw_os_error(21)))?;
+                let new_name = new.file_name()
+                                  .ok_or(map_err_with_name("rename2", old, io::Error::from_raw_os_error(21)))?;
+
+                {
+                    let f = protected_fs::OpenOptions::default()
+                            .append(true)
+                            .open_ex(old, &self.key)
+                            .map_err(|e| map_err_with_name("rename_meta (open)", old, e))?;
+                    f.rename_meta(&old_name, &new_name)?;
+                }
+
+                Ok(fs::rename(old, new).map_err(|e| map_err_with_name("rename", old, e))?)
+            } else {
+                Ok(fs::rename(old, new).map_err(|e| map_err_with_name("rename", old, e))?)
+            }
+        }
     }
 
     fn lock(&self, p: &Path) -> Result<FileLock> {
@@ -128,17 +241,19 @@ impl Env for PosixDiskEnv {
                 .map_err(|e| map_err_with_name("lock", p, e))?;
 
             let fd = f.into_raw_fd();
-            let result = unsafe { libc::flock(fd as libc::c_int, libc::LOCK_EX | libc::LOCK_NB) };
+            // FIXME:
+            //let result = unsafe { libc::flock(fd as libc::c_int, libc::LOCK_EX | libc::LOCK_NB) };
+            let result = 0;
 
             if result < 0 {
-                if errno::errno() == errno::Errno(libc::EWOULDBLOCK) {
+                if libc::errno() == libc::EWOULDBLOCK {
                     return Err(Status::new(
                         StatusCode::LockError,
                         "lock on database is already held by different process",
                     ));
                 }
                 return Err(Status::new(
-                    StatusCode::Errno(errno::errno()),
+                    StatusCode::Errno(libc::errno()),
                     &format!("unknown lock error on fd {} (file {})", fd, p.display()),
                 ));
             }
@@ -160,12 +275,14 @@ impl Env for PosixDiskEnv {
         } else {
             let fd = locks.remove(&l.id).unwrap();
             let result = unsafe {
-                let ok = libc::fcntl(fd, libc::F_GETFD);
+                let ok = libc::ocall::fcntl_arg0(fd, libc::F_GETFD);
                 if ok < 0 {
                     // Likely EBADF when already closed. In that case, the lock is released and all is fine.
                     return Ok(());
                 }
-                libc::flock(fd, libc::LOCK_UN)
+                // FIXME::
+                //libc::flock(fd, libc::LOCK_UN)
+                0
             };
             if result < 0 {
                 return err(StatusCode::LockError, &format!("unlock failed: {}", l.id));
@@ -214,15 +331,23 @@ mod tests {
         assert!(env.delete(name).is_ok());
 
         {
-            // write
-            let mut f = env.open_writable_file(name).unwrap();
-            let _ = f.write("123xyz".as_bytes());
+            {
+                // write
+                let mut f = env.open_writable_file(name).unwrap();
+                let _ = f.write("123xyz".as_bytes());
+            }
             assert_eq!(6, env.size_of(name).unwrap_or(0));
 
             // rename
             let newname = Path::new("testfile2.xyz");
             assert!(env.rename(name, newname).is_ok());
-            assert_eq!(6, env.size_of(newname).unwrap());
+            cfg_if! {
+                if #[cfg(feature = "mesalock_sgx")] {
+                    assert_eq!(false, env.size_of(newname).is_err());
+                } else {
+                    assert_eq!(6, env.size_of(newname).unwrap());
+                }
+            }
             assert!(!env.exists(name).unwrap());
             // rename back so that the remaining tests can use the file.
             assert!(env.rename(newname, name).is_ok());
@@ -241,8 +366,10 @@ mod tests {
         let name = n.as_ref();
 
         {
-            let mut f = env.open_writable_file(name).unwrap();
-            let _ = f.write("123xyz".as_bytes());
+            {
+                let mut f = env.open_writable_file(name).unwrap();
+                let _ = f.write("123xyz".as_bytes());
+            }
             assert_eq!(env.size_of(name).unwrap_or(0), 6);
         }
 

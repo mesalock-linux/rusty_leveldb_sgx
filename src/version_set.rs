@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use cmp::{Cmp, InternalKeyCmp};
 use env::Env;
 use error::{err, Result, Status, StatusCode};

@@ -1,5 +1,11 @@
-use std::thread;
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
+// FIXME:
+//use std::thread;
 use std::time;
+#[cfg(feature = "mesalock_sgx")]
+use std::untrusted::time::SystemTimeEx;
 
 pub fn micros() -> u64 {
     loop {
@@ -12,6 +18,7 @@ pub fn micros() -> u64 {
     }
 }
 
+// FIXME::
 pub fn sleep_for(micros: u32) {
-    thread::sleep(time::Duration::new(0, micros * 1000));
+    //thread::sleep(time::Duration::new(0, micros * 1000));
 }

@@ -1,7 +1,14 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use block::Block;
 use cache::Cache;
 use cmp::{Cmp, DefaultCmp};
 use disk_env;
+
+#[cfg(feature = "mesalock_sgx")]
+use disk_env::DBPersistKey;
+
 use env::Env;
 use filter;
 use infolog::{self, Logger};
@@ -57,26 +64,77 @@ pub struct Options {
     pub filter_policy: filter::BoxedFilterPolicy,
 }
 
-impl Default for Options {
-    fn default() -> Options {
-        Options {
-            cmp: Rc::new(Box::new(DefaultCmp)),
-            env: Rc::new(Box::new(disk_env::PosixDiskEnv::new())),
-            log: None,
-            create_if_missing: true,
-            error_if_exists: false,
-            paranoid_checks: false,
-            write_buffer_size: WRITE_BUFFER_SIZE,
-            max_open_files: 1 << 10,
-            max_file_size: 2 << 20,
-            // 2000 elements by default
-            block_cache: share(Cache::new(BLOCK_CACHE_CAPACITY / BLOCK_MAX_SIZE)),
-            block_size: BLOCK_MAX_SIZE,
-            block_restart_interval: 16,
-            reuse_logs: true,
-            reuse_manifest: true,
-            compression_type: CompressionType::CompressionNone,
-            filter_policy: Rc::new(Box::new(filter::BloomPolicy::new(DEFAULT_BITS_PER_KEY))),
+
+cfg_if! {
+    if #[cfg(feature = "mesalock_sgx")] {
+        impl Options {
+            pub fn new_disk_db_with(key: DBPersistKey) -> Options {
+                Options {
+                    cmp: Rc::new(Box::new(DefaultCmp)),
+                    env: Rc::new(Box::new(disk_env::PosixDiskEnv::new_with(key))),
+                    log: None,
+                    create_if_missing: true,
+                    error_if_exists: false,
+                    paranoid_checks: false,
+                    write_buffer_size: WRITE_BUFFER_SIZE,
+                    max_open_files: 1 << 10,
+                    max_file_size: 2 << 20,
+                    // 2000 elements by default
+                    block_cache: share(Cache::new(BLOCK_CACHE_CAPACITY / BLOCK_MAX_SIZE)),
+                    block_size: BLOCK_MAX_SIZE,
+                    block_restart_interval: 16,
+                    reuse_logs: true,
+                    reuse_manifest: true,
+                    compression_type: CompressionType::CompressionNone,
+                    filter_policy: Rc::new(Box::new(filter::BloomPolicy::new(DEFAULT_BITS_PER_KEY))),
+                }
+            }
+
+            pub fn new_mem_db() -> Options {
+                Options {
+                    cmp: Rc::new(Box::new(DefaultCmp)),
+                    env: Rc::new(Box::new(MemEnv::new())),
+                    log: None,
+                    create_if_missing: true,
+                    error_if_exists: false,
+                    paranoid_checks: false,
+                    write_buffer_size: WRITE_BUFFER_SIZE,
+                    max_open_files: 1 << 10,
+                    max_file_size: 2 << 20,
+                    // 2000 elements by default
+                    block_cache: share(Cache::new(BLOCK_CACHE_CAPACITY / BLOCK_MAX_SIZE)),
+                    block_size: BLOCK_MAX_SIZE,
+                    block_restart_interval: 16,
+                    reuse_logs: true,
+                    reuse_manifest: true,
+                    compression_type: CompressionType::CompressionNone,
+                    filter_policy: Rc::new(Box::new(filter::BloomPolicy::new(DEFAULT_BITS_PER_KEY))),
+                }
+            }
+        }
+    } else {
+        impl Default for Options {
+            fn default() -> Options {
+                Options {
+                    cmp: Rc::new(Box::new(DefaultCmp)),
+                    env: Rc::new(Box::new(MemEnv::new()));
+                    log: None,
+                    create_if_missing: true,
+                    error_if_exists: false,
+                    paranoid_checks: false,
+                    write_buffer_size: WRITE_BUFFER_SIZE,
+                    max_open_files: 1 << 10,
+                    max_file_size: 2 << 20,
+                    // 2000 elements by default
+                    block_cache: share(Cache::new(BLOCK_CACHE_CAPACITY / BLOCK_MAX_SIZE)),
+                    block_size: BLOCK_MAX_SIZE,
+                    block_restart_interval: 16,
+                    reuse_logs: true,
+                    reuse_manifest: true,
+                    compression_type: CompressionType::CompressionNone,
+                    filter_policy: Rc::new(Box::new(filter::BloomPolicy::new(DEFAULT_BITS_PER_KEY))),
+                }
+            }
         }
     }
 }
@@ -84,14 +142,28 @@ impl Default for Options {
 /// Returns Options that will cause a database to exist purely in-memory instead of being stored on
 /// disk. This is useful for testing or ephemeral databases.
 pub fn in_memory() -> Options {
-    let mut opt = Options::default();
-    opt.env = Rc::new(Box::new(MemEnv::new()));
-    opt
+    cfg_if! {
+        if #[cfg(feature = "mesalock_sgx")] {
+            let mut opt = Options::new_mem_db();
+            opt
+        } else {
+            let mut opt = Options::default();
+            opt.env = Rc::new(Box::new(MemEnv::new()));
+            opt
+        }
+    }
 }
 
 pub fn for_test() -> Options {
-    let mut o = Options::default();
-    o.env = Rc::new(Box::new(MemEnv::new()));
+    cfg_if! {
+        if #[cfg(feature = "mesalock_sgx")] {
+            let mut o = Options::new_mem_db();
+        } else {
+            let mut o = Options::default();
+            o.env = Rc::new(Box::new(MemEnv::new()));
+        }
+    }
+
     o.log = Some(share(infolog::stderr()));
     o
 }

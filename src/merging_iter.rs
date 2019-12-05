@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use cmp::Cmp;
 use types::{current_key_val, Direction, LdbIterator};
 

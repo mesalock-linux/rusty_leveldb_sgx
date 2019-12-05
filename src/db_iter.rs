@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use cmp::Cmp;
 use key_types::{parse_internal_key, truncate_to_userkey, LookupKey, ValueType};
 use merging_iter::MergingIter;

@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use block::{Block, BlockIter};
 use blockhandle::BlockHandle;
 use cache;
@@ -756,5 +759,4 @@ mod tests {
             panic!("Should have hit 5th record in table!");
         }
     }
-
 }

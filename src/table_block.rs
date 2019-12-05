@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use block::Block;
 use blockhandle::BlockHandle;
 use env::RandomAccess;

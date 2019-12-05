@@ -1,4 +1,6 @@
 //! A collection of fundamental and/or simple types used by other modules
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
 
 use error::{err, Result, StatusCode};
 

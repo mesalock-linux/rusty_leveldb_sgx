@@ -1,7 +1,12 @@
 //! db_impl contains the implementation of the database interface and high-level compaction and
 //! maintenance logic.
-
 #![allow(unused_attributes)]
+
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
+#[cfg(feature = "mesalock_sgx")]
+use std::untrusted::path::PathEx;
 
 use db_iter::DBIterator;
 
@@ -70,6 +75,8 @@ impl DB {
             let log = open_info_log(opt.env.as_ref().as_ref(), name);
             opt.log = Some(share(log));
         }
+
+        // FIXME:: use std::untrusted::path::PathEx
         let path = name.canonicalize().unwrap_or(name.to_owned());
 
         let cache = share(TableCache::new(&name, opt.clone(), opt.max_open_files - 10));
@@ -228,50 +235,51 @@ impl DB {
         ve: &mut VersionEdit,
     ) -> Result<(bool, SequenceNumber)> {
         let filename = log_file_name(&self.path, log_num);
-        let logfile = self.opt.env.open_sequential_file(Path::new(&filename))?;
-        // Use the user-supplied comparator; it will be wrapped inside a MemtableKeyCmp.
-        let cmp: Rc<Box<dyn Cmp>> = self.opt.cmp.clone();
-
-        let mut logreader = LogReader::new(
-            logfile, // checksum=
-            true,
-        );
-        log!(self.opt.log, "Recovering log file {:?}", filename);
-        let mut scratch = vec![];
-        let mut mem = MemTable::new(cmp.clone());
-        let mut batch = WriteBatch::new();
-
         let mut compactions = 0;
         let mut max_seq = 0;
         let mut save_manifest = false;
+        let cmp: Rc<Box<dyn Cmp>> = self.opt.cmp.clone();
+        let mut mem = MemTable::new(cmp.clone());
+        {
+            let logfile = self.opt.env.open_sequential_file(Path::new(&filename))?;
+            // Use the user-supplied comparator; it will be wrapped inside a MemtableKeyCmp.
 
-        while let Ok(len) = logreader.read(&mut scratch) {
-            if len == 0 {
-                break;
-            }
-            if len < 12 {
-                log!(
-                    self.opt.log,
-                    "corruption in log file {:06}: record shorter than 12B",
-                    log_num
-                );
-                continue;
-            }
+            let mut logreader = LogReader::new(
+                logfile, // checksum=
+                true,
+            );
+            log!(self.opt.log, "Recovering log file {:?}", filename);
+            let mut scratch = vec![];
+            let mut batch = WriteBatch::new();
 
-            batch.set_contents(&scratch);
-            batch.insert_into_memtable(batch.sequence(), &mut mem);
+            while let Ok(len) = logreader.read(&mut scratch) {
+                if len == 0 {
+                    break;
+                }
+                if len < 12 {
+                    log!(
+                        self.opt.log,
+                        "corruption in log file {:06}: record shorter than 12B",
+                        log_num
+                    );
+                    continue;
+                }
 
-            let last_seq = batch.sequence() + batch.count() as u64 - 1;
-            if last_seq > max_seq {
-                max_seq = last_seq
+                batch.set_contents(&scratch);
+                batch.insert_into_memtable(batch.sequence(), &mut mem);
+
+                let last_seq = batch.sequence() + batch.count() as u64 - 1;
+                if last_seq > max_seq {
+                    max_seq = last_seq
+                }
+                if mem.approx_mem_usage() > self.opt.write_buffer_size {
+                    compactions += 1;
+                    self.write_l0_table(&mem, ve, None)?;
+                    save_manifest = true;
+                    mem = MemTable::new(cmp.clone());
+                }
+                batch.clear();
             }
-            if mem.approx_mem_usage() > self.opt.write_buffer_size {
-                compactions += 1;
-                self.write_l0_table(&mem, ve, None)?;
-                save_manifest = true;
-                mem = MemTable::new(cmp.clone());
-            }
-            batch.clear();
         }
 
         // Check if we can reuse the last log file.
@@ -1057,10 +1065,16 @@ fn open_info_log<E: Env + ?Sized, P: AsRef<Path>>(env: &E, db: P) -> Logger {
             let _ = env.rename(Path::new(&logfilename), Path::new(&oldlogfilename));
         }
     }
+    cfg_if! {
+        if #[cfg(feature = "mesalock_sgx")] {
+    Logger(Box::new(io::stdout()))
+        } else {
     if let Ok(w) = env.open_writable_file(Path::new(&logfilename)) {
         Logger(w)
     } else {
         Logger(Box::new(io::sink()))
+    }
+        }
     }
 }
 

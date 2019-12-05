@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["Lewin Bormann <lewin@lewin-bormann.info>"]
 
 [dependencies]
-rusty-leveldb = { path = "../../" }
+rusty-leveldb = { path = "../../", features = ["mesalock_sgx"] }

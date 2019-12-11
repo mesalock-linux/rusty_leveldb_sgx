@@ -1065,16 +1065,10 @@ fn open_info_log<E: Env + ?Sized, P: AsRef<Path>>(env: &E, db: P) -> Logger {
             let _ = env.rename(Path::new(&logfilename), Path::new(&oldlogfilename));
         }
     }
-    cfg_if! {
-        if #[cfg(feature = "mesalock_sgx")] {
-    Logger(Box::new(io::stdout()))
-        } else {
     if let Ok(w) = env.open_writable_file(Path::new(&logfilename)) {
         Logger(w)
     } else {
         Logger(Box::new(io::sink()))
-    }
-        }
     }
 }
 

@@ -64,7 +64,6 @@ pub trait Env {
     fn new_logger(&self, &Path) -> Result<Logger>;
 
     fn micros(&self) -> u64;
-    fn sleep_for(&self, micros: u32);
 }
 
 pub struct Logger {

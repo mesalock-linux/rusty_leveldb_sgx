@@ -2,7 +2,7 @@
 use std::prelude::v1::*;
 
 use env::{path_to_str, Env, FileLock, Logger, RandomAccess};
-use env_common::{micros, sleep_for};
+use env_common::micros;
 use error::{err, Result, Status, StatusCode};
 
 use std::collections::HashMap;
@@ -292,10 +292,6 @@ impl Env for PosixDiskEnv {
 
     fn micros(&self) -> u64 {
         micros()
-    }
-
-    fn sleep_for(&self, micros: u32) {
-        sleep_for(micros);
     }
 }
 

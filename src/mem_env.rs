@@ -3,7 +3,7 @@
 use std::prelude::v1::*;
 
 use env::{path_to_str, path_to_string, Env, FileLock, Logger, RandomAccess};
-use env_common::{micros, sleep_for};
+use env_common::micros;
 use error::{err, Result, StatusCode};
 
 use std::collections::hash_map::Entry;
@@ -347,9 +347,6 @@ impl Env for MemEnv {
     fn micros(&self) -> u64 {
         micros()
     }
-    fn sleep_for(&self, micros: u32) {
-        sleep_for(micros)
-    }
 
     fn new_logger(&self, p: &Path) -> Result<Logger> {
         self.open_appendable_file(p)
@@ -608,6 +605,5 @@ mod tests {
 
         me.new_logger(p1).unwrap();
         assert!(me.micros() > 0);
-        me.sleep_for(10);
     }
 }

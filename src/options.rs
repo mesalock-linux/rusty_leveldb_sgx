@@ -6,17 +6,22 @@ use cache::Cache;
 use cmp::{Cmp, DefaultCmp};
 use disk_env;
 
-#[cfg(feature = "mesalock_sgx")]
-use disk_env::DBPersistKey;
-
 use env::Env;
 use filter;
 use infolog::{self, Logger};
 use mem_env::MemEnv;
 use types::{share, Shared};
 
-use std::default::Default;
 use std::rc::Rc;
+
+cfg_if! {
+    if #[cfg(feature = "mesalock_sgx")] {
+        use disk_env::DBPersistKey;
+    } else {
+        use std::default::Default;
+    }
+}
+
 
 const KB: usize = 1 << 10;
 const MB: usize = KB * KB;
@@ -144,8 +149,7 @@ cfg_if! {
 pub fn in_memory() -> Options {
     cfg_if! {
         if #[cfg(feature = "mesalock_sgx")] {
-            let mut opt = Options::new_mem_db();
-            opt
+            Options::new_mem_db()
         } else {
             let mut opt = Options::default();
             opt.env = Rc::new(Box::new(MemEnv::new()));

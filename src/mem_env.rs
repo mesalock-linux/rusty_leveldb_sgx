@@ -11,8 +11,14 @@ use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-//use std::sync::{Arc, Mutex};
-use std::sync::{Arc, SgxMutex as Mutex};
+
+cfg_if! {
+    if #[cfg(feature = "mesalock_sgx")] {
+        use std::sync::{Arc, SgxMutex as Mutex};
+    } else {
+        use std::sync::{Arc, Mutex};
+    }
+}
 
 /// BufferBackedFile is a simple type implementing RandomAccess on a Vec<u8>.
 pub type BufferBackedFile = Vec<u8>;

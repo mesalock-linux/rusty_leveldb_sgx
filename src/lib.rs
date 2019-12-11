@@ -22,24 +22,19 @@
 //!
 #![cfg_attr(feature = "mesalock_sgx", no_std)]
 
-
 #![allow(dead_code)]
 
-#[cfg(all(feature = "mesalock_sgx", not(target_env = "sgx")))]
+#[cfg(feature = "mesalock_sgx")]
 #[macro_use]
 extern crate sgx_tstd as std;
-
-#[cfg(feature = "mesalock_sgx")]
-extern crate sgx_libc as libc;
-#[cfg(feature = "mesalock_sgx")]
-extern crate sgx_trts;
-#[cfg(feature = "mesalock_sgx")]
-extern crate sgx_types;
 
 #[macro_use]
 extern crate cfg_if;
 cfg_if! {
     if #[cfg(feature = "mesalock_sgx")]  {
+        extern crate sgx_libc as libc;
+        extern crate sgx_trts;
+        extern crate sgx_types;
         extern crate protected_fs;
     } else {
         extern crate libc;

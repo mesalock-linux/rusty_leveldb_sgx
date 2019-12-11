@@ -6,12 +6,19 @@ use env_common::{micros, sleep_for};
 use error::{err, Result, Status, StatusCode};
 
 use std::collections::HashMap;
-//use std::fs;
-#[cfg(feature = "mesalock_sgx")]
-use std::untrusted::fs;
 
-#[cfg(feature = "mesalock_sgx")]
-use std::untrusted::path::PathEx;
+cfg_if! {
+    if #[cfg(feature = "mesalock_sgx")] {
+        use std::untrusted::fs;
+        use std::untrusted::path::PathEx;
+        use protected_fs;
+        use std::io::{Seek, SeekFrom};
+        
+        pub type DBPersistKey = [u8; 16];
+    } else {
+        use std::fs;
+    }
+}
 
 use std::io::{self, Read, Write};
 use std::iter::FromIterator;
@@ -20,18 +27,6 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, SgxMutex as Mutex};
 
 use libc;
-
-cfg_if! {
-    if #[cfg(feature = "mesalock_sgx")] {
-        use protected_fs;
-        use std::io::{Seek, SeekFrom};
-    }
-}
-
-pub type DBPersistKey = [u8; 16];
-
-//FIXME:Hardcode Key
-//const KEY: [u8; 16] = [90u8; 16];
 
 const F_RDLCK: libc::c_short = 0;
 const F_WRLCK: libc::c_short = 1;
@@ -180,7 +175,6 @@ impl Env for PosixDiskEnv {
 
     fn size_of(&self, p: &Path) -> Result<usize> {
         cfg_if! {
-            // FIXME: workaround
             if #[cfg(feature = "mesalock_sgx")] {
                 let mut f = protected_fs::OpenOptions::default()
                         .read(true)

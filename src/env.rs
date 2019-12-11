@@ -5,16 +5,17 @@ use std::prelude::v1::*;
 
 use error::Result;
 
-//use std::fs::File;
 use std::io::prelude::*;
 use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
-use std::untrusted::fs::File;
 
 cfg_if! {
     if #[cfg(feature = "mesalock_sgx")] {
         use protected_fs::ProtectedFile;
         use error::Status;
+        use std::untrusted::fs::File;
+    } else {
+        use std::fs::File;
     }
 }
 

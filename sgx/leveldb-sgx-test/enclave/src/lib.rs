@@ -39,17 +39,10 @@ extern crate sgx_tunittest;
 
 extern crate rand;
 extern crate rusty_leveldb;
-use rusty_leveldb::CompressionType;
-use rusty_leveldb::Options;
-use rusty_leveldb::DB;
-
-use std::error::Error;
-use std::iter::FromIterator;
 
 use sgx_tunittest::*;
 use sgx_types::*;
 use std::io::{self, Write};
-use std::panic;
 use std::slice;
 use std::string::String;
 use std::vec::Vec;

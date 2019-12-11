@@ -13,7 +13,6 @@ use rusty_leveldb::DB;
 
 use std::error::Error;
 use std::io::{self, ErrorKind};
-use std::iter::FromIterator;
 
 const KEY_LEN: usize = 16;
 const VAL_LEN: usize = 48;
@@ -27,7 +26,7 @@ fn gen_string(len: usize) -> String {
     value
 }
 
-fn fill_db(db: &mut DB, entries: usize) -> Result<(), Box<Error>> {
+fn fill_db(db: &mut DB, entries: usize) -> Result<(), Box<dyn Error>> {
     for i in 0..entries {
         let (k, v) = (gen_string(KEY_LEN), gen_string(VAL_LEN));
         db.put(k.as_bytes(), v.as_bytes())?;

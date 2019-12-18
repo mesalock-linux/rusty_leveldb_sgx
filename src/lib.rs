@@ -20,11 +20,12 @@
 //! db.flush().unwrap();
 //! ```
 //!
-#![cfg_attr(feature = "mesalock_sgx", no_std)]
+#![cfg_attr(all(feature = "mesalock_sgx", not(target_env = "sgx")), no_std)]
+#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock"), feature(rustc_private))]
 
 #![allow(dead_code)]
 
-#[cfg(feature = "mesalock_sgx")]
+#[cfg(all(feature = "mesalock_sgx", not(target_env = "sgx")))]
 #[macro_use]
 extern crate sgx_tstd as std;
 

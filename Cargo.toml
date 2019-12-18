@@ -23,14 +23,14 @@ cfg-if = { version = "0.1.9", git = "https://github.com/mesalock-linux/cfg-if-fo
 protected_fs_rs = {git = "https://github.com/mesalock-linux/protected_fs_rs.git", optional=true}
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_libc = { version = "1.0.9", git = "https://github.com/baidu/rust-sgx-sdk.git", optional = true }
-sgx_types = { rev = "v1.0.9", git = "https://github.com/baidu/rust-sgx-sdk.git", optional = true }
-sgx_tstd = { rev = "v1.0.9", git = "https://github.com/baidu/rust-sgx-sdk.git", optional = true }
-sgx_trts = { rev = "v1.0.9", git = "https://github.com/baidu/rust-sgx-sdk.git", optional = true }
+sgx_libc = { version = "1.0.9", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
+sgx_types = { rev = "v1.1.0", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
+sgx_tstd = { rev = "v1.1.0", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
+sgx_trts = { rev = "v1.1.0", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
 
 [dev-dependencies]
-time-test = "0.2"
-bencher = "0.1"
+#time-test = "0.2"
+#bencher = "0.1"
 
 [[bench]]
 name = "maps_bench"

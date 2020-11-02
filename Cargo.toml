@@ -20,7 +20,7 @@ rand = { version = "0.7", git = "https://github.com/mesalock-linux/rand-sgx", ta
 snap = { version = "0.2", git = "https://github.com/mesalock-linux/rust-snappy-sgx"}
 integer-encoding = {version = "1.0", git = "https://github.com/mesalock-linux/integer-encoding-rs-sgx"}
 cfg-if = { version = "0.1.9", git = "https://github.com/mesalock-linux/cfg-if-for-sysroot" }
-protected_fs_rs = {git = "https://github.com/mesalock-linux/protected_fs_rs.git", optional=true}
+protected_fs_rs = {git = "https://github.com/mesalock-linux/protected_fs_rs", optional=true}
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_libc = { rev = "v1.1.2", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
